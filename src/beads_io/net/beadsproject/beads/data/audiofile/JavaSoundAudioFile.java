@@ -38,6 +38,9 @@ public class JavaSoundAudioFile implements AudioFileReader, AudioFileWriter {
 	private float[][] sampleData;
 	private WavFileReaderWriter wavBackup = new WavFileReaderWriter();	
 
+	/**
+	 * Constructor.
+	 */
 	public JavaSoundAudioFile() {
 	}
 
@@ -61,7 +64,7 @@ public class JavaSoundAudioFile implements AudioFileReader, AudioFileWriter {
 	 * @return
 	 */
 	static public AudioFormat convertBeadsAudioFormatToJavasoundAudioFormat(SampleAudioFormat saf) {
-		AudioFormat af = new AudioFormat(saf.sampleRate, saf.bitDepth, saf.channels, saf.signed, saf.bigEndian);
+		AudioFormat af = new AudioFormat(saf.getSampleRate(), saf.getBitDepth(), saf.getChannels(), saf.isSigned(), saf.isBigEndian());
 		return af;
 	}
 
@@ -73,7 +76,7 @@ public class JavaSoundAudioFile implements AudioFileReader, AudioFileWriter {
 		if(!this.getSupportedFileTypesForWriting().contains(type)) {
 			throw new OperationUnsupportedException("Unsupported file type for writing: " + type);
 		}
-		if (saf.bitDepth > 16) {
+		if (saf.getBitDepth() > 16) {
 			throw new OperationUnsupportedException("Unsupported bit depth. Javasound cannot write WAV or AIFF files with bit depth > 16.");
 		}
 
@@ -83,11 +86,11 @@ public class JavaSoundAudioFile implements AudioFileReader, AudioFileWriter {
 		// Convert de-interleaved data to interleaved bytes...
 		float interleaved[] = new float[chans * frames];
 		AudioUtils.interleave(data, chans, frames, interleaved);
-		byte bytes[] = new byte[chans*frames*saf.bitDepth/8];
-		AudioUtils.floatToByte(bytes, interleaved, saf.bigEndian);
+		byte bytes[] = new byte[chans*frames*saf.getBitDepth()/8];
+		AudioUtils.floatToByte(bytes, interleaved, saf.isBigEndian());
 
 		// Write the file
-		AudioFormat jsaf = new AudioFormat(saf.sampleRate, saf.bitDepth, saf.channels, saf.signed, saf.bigEndian);
+		AudioFormat jsaf = new AudioFormat(saf.getSampleRate(), saf.getBitDepth(), saf.getChannels(), saf.isSigned(), saf.isBigEndian());; 
 		AudioFileFormat.Type jsType = AudioFileFormat.Type.WAVE;
 		if (type == AudioFileType.AIFF) {
 			jsType = AudioFileFormat.Type.AIFF;
@@ -217,13 +220,13 @@ public class JavaSoundAudioFile implements AudioFileReader, AudioFileWriter {
 			System.arraycopy(data, 0, newBuf, 0, sampleBufferSize);
 			data = newBuf;
 		}
-		int nFrames = sampleBufferSize / (2 * audioFormat.channels);
+		int nFrames = sampleBufferSize / (2 * audioFormat.getChannels());
 
 		// Copy and de-interleave entire data
-		sampleData = new float[audioFormat.channels][(int) nFrames];
-		float[] interleaved = new float[(int) (audioFormat.channels * nFrames)];
-		AudioUtils.byteToFloat(interleaved, data, audioFormat.bigEndian);
-		AudioUtils.deinterleave(interleaved, audioFormat.channels, (int) nFrames, sampleData);
+		sampleData = new float[audioFormat.getChannels()][(int) nFrames];
+		float[] interleaved = new float[(int) (audioFormat.getChannels() * nFrames)];
+		AudioUtils.byteToFloat(interleaved, data, audioFormat.isBigEndian());
+		AudioUtils.deinterleave(interleaved, audioFormat.getChannels(), (int) nFrames, sampleData);
 	}
 
 	/**

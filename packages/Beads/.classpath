@@ -15,5 +15,6 @@
 	<classpathentry kind="lib" path="library/tools.jar"/>
 	<classpathentry kind="lib" path="library/tritonus_aos-0.3.6.jar"/>
 	<classpathentry kind="lib" path="library/tritonus_share.jar"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/Beads"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

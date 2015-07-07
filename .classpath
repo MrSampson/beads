@@ -14,5 +14,6 @@
 	<classpathentry kind="lib" path="dependencies/org-jaudiolibs-jnajack.jar"/>
 	<classpathentry kind="lib" path="dependencies/tritonus_aos-0.3.6.jar"/>
 	<classpathentry kind="lib" path="dependencies/tritonus_share.jar"/>
+	<classpathentry kind="con" path="org.eclipse.pde.core.requiredPlugins"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
