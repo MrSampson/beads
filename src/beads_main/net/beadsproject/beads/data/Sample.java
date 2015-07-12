@@ -11,14 +11,15 @@ import javax.sound.sampled.UnsupportedAudioFileException;
 import net.beadsproject.beads.data.audiofile.AudioFileReader;
 import net.beadsproject.beads.data.audiofile.AudioFileType;
 import net.beadsproject.beads.data.audiofile.AudioFileWriter;
+import net.beadsproject.beads.ugens.RecordToSample;
+import net.beadsproject.beads.ugens.SamplePlayer;
 
 /**
- * A Sample encapsulates audio data, either loaded from an audio file (such as
- * an MP3) or written by a Recorder. <br/>
- * The typical use of a Sample is through
- * {@link net.beadsproject.beads.data.SampleManager}. For example, to load an
- * mp3, you would do the following. <br/>
- * <br/>
+ * <p>A Sample encapsulates audio data, either loaded from an audio file (such as
+ * an MP3) or written by a Recorder. </p>
+ * <p>The typical use of a Sample is through a
+ * {@link SampleManager}. For example, to load an
+ * mp3, you would do the following. </p>
  * <code>
  * Sample wicked = SampleManager.sample("wickedTrack.mp3");	
  * </code> 
@@ -135,11 +136,36 @@ public class Sample {
     public Sample(double length, int nChannels, float sampleRate) {
         this.nChannels = nChannels;
         this.sampleRate = sampleRate;
-        current = new float[nChannels];
-        next = new float[nChannels];
-        nFrames = (long) msToSamples(length);
-        theSampleData = new float[nChannels][(int) nFrames];
-        length = 1000f * nFrames / this.sampleRate;
+        this.current = new float[nChannels];
+        this.next = new float[nChannels];
+        this.nFrames = (long) msToSamples(length);
+        this.theSampleData = new float[nChannels][(int) this.nFrames];
+        length = 1000f * this.nFrames / this.sampleRate;
+    }
+    
+    /**
+     * <p>Instantiates a new writeable Sample with the specified audio format and
+     * length in frames.</p>
+     * 
+     *<p>The sample data isn't initialized, so it may contain junk. Use {@link #clear()}
+     * to clear it.</p>
+     * 
+     * @author Oliver Sampson, University of Konstanz
+     * 
+     * @param nFrames
+     *            The length of the sample in frames.
+     * @param nChannels
+     *            The number of channels
+     * @param sampleRate
+     *            The sampleRate
+     */
+    public Sample(long nFrames, int nChannels, float sampleRate) {
+        this.nChannels = nChannels;
+        this.sampleRate = sampleRate;
+        this.current = new float[nChannels];
+        this.next = new float[nChannels];
+        this.nFrames = nFrames;
+        this.theSampleData = new float[nChannels][(int) nFrames];
     }
 
     /**
@@ -164,7 +190,7 @@ public class Sample {
      * @return
      */
     public Class<? extends AudioFileReader> getAudioFileReaderClass() {
-        return audioFileReaderClass;
+        return this.audioFileReaderClass;
     }
 
     /**
@@ -176,7 +202,7 @@ public class Sample {
      * @return
      */
     public Class<? extends AudioFileWriter> getAudioFileWriterClass() {
-        return audioFileWriterClass;
+        return this.audioFileWriterClass;
     }
 
     /**
@@ -215,11 +241,11 @@ public class Sample {
      * 
      */
     public void getFrame(int frame, float[] frameData) {
-        if (frame < 0 || frame >= nFrames) {
+        if (frame < 0 || frame >= this.nFrames) {
             return;
         }
-        for (int i = 0; i < nChannels; i++) {
-            frameData[i] = theSampleData[i][frame];
+        for (int i = 0; i < this.nChannels; i++) {
+            frameData[i] = this.theSampleData[i][frame];
         }
     }
 
@@ -250,21 +276,21 @@ public class Sample {
     public void getFrameLinear(double posInMS, float[] result) {
         double frame = msToSamples(posInMS);
         int frame_floor = (int) Math.floor(frame);
-        if (frame_floor > 0 && frame_floor < nFrames) {
+        if (frame_floor > 0 && frame_floor < this.nFrames) {
             double frame_frac = frame - frame_floor;
-            if (frame_floor == nFrames - 1) {
+            if (frame_floor == this.nFrames - 1) {
                 getFrame(frame_floor, result);
             } else // lerp
             {
-                getFrame(frame_floor, current);
-                getFrame(frame_floor + 1, next);
-                for (int i = 0; i < nChannels; i++) {
-                    result[i] = (float) ((1 - frame_frac) * current[i] + frame_frac
-                            * next[i]);
+                getFrame(frame_floor, this.current);
+                getFrame(frame_floor + 1, this.next);
+                for (int i = 0; i < this.nChannels; i++) {
+                    result[i] = (float) ((1 - frame_frac) * this.current[i] + frame_frac
+                            * this.next[i]);
                 }
             }
         } else {
-            for (int i = 0; i < nChannels; i++) {
+            for (int i = 0; i < this.nChannels; i++) {
                 result[i] = 0.0f;
             }
         }
@@ -283,35 +309,35 @@ public class Sample {
         double frame = msToSamples(posInMS);
         float a0, a1, a2, a3, mu2;
         float ym1, y0, y1, y2;
-        for (int i = 0; i < nChannels; i++) {
+        for (int i = 0; i < this.nChannels; i++) {
             int realCurrentSample = (int) Math.floor(frame);
             float fractionOffset = (float) (frame - realCurrentSample);
 
-            if (realCurrentSample >= 0 && realCurrentSample < (nFrames - 1)) {
+            if (realCurrentSample >= 0 && realCurrentSample < (this.nFrames - 1)) {
                 realCurrentSample--;
                 if (realCurrentSample < 0) {
-                    getFrame(0, current);
-                    ym1 = current[i];
+                    getFrame(0, this.current);
+                    ym1 = this.current[i];
                     realCurrentSample = 0;
                 } else {
-                    getFrame(realCurrentSample++, current);
-                    ym1 = current[i];
+                    getFrame(realCurrentSample++, this.current);
+                    ym1 = this.current[i];
                 }
-                getFrame(realCurrentSample++, current);
-                y0 = current[i];
-                if (realCurrentSample >= nFrames) {
-                    getFrame((int) nFrames - 1, current);
-                    y1 = current[i]; // ??
+                getFrame(realCurrentSample++, this.current);
+                y0 = this.current[i];
+                if (realCurrentSample >= this.nFrames) {
+                    getFrame((int) this.nFrames - 1, this.current);
+                    y1 = this.current[i]; // ??
                 } else {
-                    getFrame(realCurrentSample++, current);
-                    y1 = current[i];
+                    getFrame(realCurrentSample++, this.current);
+                    y1 = this.current[i];
                 }
-                if (realCurrentSample >= nFrames) {
-                    getFrame((int) nFrames - 1, current);
-                    y2 = current[i]; // ??
+                if (realCurrentSample >= this.nFrames) {
+                    getFrame((int) this.nFrames - 1, this.current);
+                    y2 = this.current[i]; // ??
                 } else {
-                    getFrame(realCurrentSample++, current);
-                    y2 = current[i];
+                    getFrame(realCurrentSample++, this.current);
+                    y2 = this.current[i];
                 }
                 mu2 = fractionOffset * fractionOffset;
                 a0 = y2 - y1 - ym1 + y0;
@@ -340,12 +366,12 @@ public class Sample {
      * @param frameData
      */
     public void getFrames(int frame, float[][] frameData) {
-        if (frame >= nFrames) {
+        if (frame >= this.nFrames) {
             return;
         }
-        int numFloats = Math.min(frameData[0].length, (int) (nFrames - frame));
-        for (int i = 0; i < nChannels; i++) {
-            System.arraycopy(theSampleData[i], frame, frameData[i], 0,
+        int numFloats = Math.min(frameData[0].length, (int) (this.nFrames - frame));
+        for (int i = 0; i < this.nChannels; i++) {
+            System.arraycopy(this.theSampleData[i], frame, frameData[i], 0,
                     numFloats);
         }
     }
@@ -354,8 +380,8 @@ public class Sample {
      * Clears the (writeable) sample.
      */
     public void clear() {
-        for (int i = 0; i < nChannels; i++) {
-            Arrays.fill(theSampleData[i], 0f);
+        for (int i = 0; i < this.nChannels; i++) {
+            Arrays.fill(this.theSampleData[i], 0f);
         }
 
     }
@@ -372,8 +398,8 @@ public class Sample {
      *            The frame data to write.
      */
     public void putFrame(int frame, float[] frameData) {
-        for (int i = 0; i < nChannels; i++) {
-            theSampleData[i][frame] = frameData[i];
+        for (int i = 0; i < this.nChannels; i++) {
+            this.theSampleData[i][frame] = frameData[i];
         }
     }
 
@@ -389,13 +415,13 @@ public class Sample {
      *            The frames to write.
      */
     public void putFrames(int frame, float[][] frameData) {
-        int numFrames = Math.min(frameData[0].length, (int) (nFrames - frame));
+        int numFrames = Math.min(frameData[0].length, (int) (this.nFrames - frame));
         if (frame < 0) {
             return;
         }
         // TODO in loop record this falls over
-        for (int i = 0; i < nChannels; i++) {
-            System.arraycopy(frameData[i], 0, theSampleData[i], frame,
+        for (int i = 0; i < this.nChannels; i++) {
+            System.arraycopy(frameData[i], 0, this.theSampleData[i], frame,
                     numFrames);
         }
     }
@@ -421,9 +447,9 @@ public class Sample {
             return;
         }
         // clip numFrames
-        numFrames = Math.min(numFrames, (int) (nFrames - frame));
-        for (int i = 0; i < nChannels; i++) {
-            System.arraycopy(frameData[i], offset, theSampleData[i], frame,
+        numFrames = Math.min(numFrames, (int) (this.nFrames - frame));
+        for (int i = 0; i < this.nChannels; i++) {
+            System.arraycopy(frameData[i], offset, this.theSampleData[i], frame,
                     numFrames);
         }
     }
@@ -474,8 +500,8 @@ public class Sample {
      */
     public void write(String fn, AudioFileType type, SampleAudioFormat saf)
             throws IOException {
-        Class<? extends AudioFileWriter> theRealAudioFileWriterClass = audioFileWriterClass == null ? defaultAudioFileWriterClass
-                : audioFileWriterClass;
+        Class<? extends AudioFileWriter> theRealAudioFileWriterClass = this.audioFileWriterClass == null ? defaultAudioFileWriterClass
+                : this.audioFileWriterClass;
         // JavaSound can only write 16-bit, but we can use WavFileReaderWriter
         // for >16-bit wavs, hence always write wavs this way
         if (type == AudioFileType.WAV) {
@@ -493,7 +519,7 @@ public class Sample {
         try {
             AudioFileWriter audioFileWriter = theRealAudioFileWriterClass
                     .getConstructor().newInstance();
-            audioFileWriter.writeAudioFile(theSampleData, fn, type, saf);
+            audioFileWriter.writeAudioFile(this.theSampleData, fn, type, saf);
         } catch (Exception e) {
             throw new IOException(
                     "Sample: Unable to create or use the AudioFileWriter class.",
@@ -514,12 +540,12 @@ public class Sample {
      *            The total number of frames the sample should have.
      */
     public void resize(long frames) {
-        int framesToCopy = (int) Math.min(frames, nFrames);
-        float[][] olddata = theSampleData;
-        theSampleData = new float[nChannels][(int) frames];
-        for (int i = 0; i < nChannels; i++)
-            System.arraycopy(olddata[i], 0, theSampleData[i], 0, framesToCopy);
-        nFrames = frames;
+        int framesToCopy = (int) Math.min(frames, this.nFrames);
+        float[][] olddata = this.theSampleData;
+        this.theSampleData = new float[this.nChannels][(int) frames];
+        for (int i = 0; i < this.nChannels; i++)
+            System.arraycopy(olddata[i], 0, this.theSampleData[i], 0, framesToCopy);
+        this.nFrames = frames;
     }
 
     /**
@@ -530,7 +556,7 @@ public class Sample {
      *            The total number of frames the sample should have.
      */
     public void resizeWithZeros(long frames) {
-        nFrames = frames;
+        this.nFrames = frames;
     }
 
     /**
@@ -559,11 +585,8 @@ public class Sample {
         return sampleTime / this.sampleRate * 1000.0f;
     }
 
-    /*
-     * (non-Javadoc)
-     * 
-     * @see java.lang.Object#toString()
-     */
+ 
+    @Override
     public String toString() {
         return getFileName();
     }
@@ -574,9 +597,9 @@ public class Sample {
      * @return the file path.
      */
     public String getFileName() {
-        if (filename == null)
+        if (this.filename == null)
             return null;
-        return filename;
+        return this.filename;
     }
 
     /**
@@ -585,8 +608,8 @@ public class Sample {
      * @return the name.
      */
     public String getSimpleName() {
-        if (simpleName != null)
-            return simpleName;
+        if (this.simpleName != null)
+            return this.simpleName;
         String fileName = getFileName();
         if (fileName == null)
             return null;
@@ -619,7 +642,7 @@ public class Sample {
      * @return
      */
     public int getNumChannels() {
-        return nChannels;
+        return this.nChannels;
     }
 
     /**
@@ -628,7 +651,7 @@ public class Sample {
      * @return
      */
     public long getNumFrames() {
-        return nFrames;
+        return this.nFrames;
     }
 
     /**
@@ -655,8 +678,8 @@ public class Sample {
         // them to the WavFileReaderWriter.
         // In the first instance we can only use the file suffix as a clue to
         // this, not the header.
-        Class<? extends AudioFileReader> theRealAudioFileReaderClass = audioFileReaderClass == null ? defaultAudioFileReaderClass
-                : audioFileReaderClass;
+        Class<? extends AudioFileReader> theRealAudioFileReaderClass = this.audioFileReaderClass == null ? defaultAudioFileReaderClass
+                : this.audioFileReaderClass;
         if (file.endsWith(".wav") || file.endsWith(".WAV")) {
             try {
                 theRealAudioFileReaderClass = (Class<? extends AudioFileReader>) Class
@@ -682,9 +705,9 @@ public class Sample {
         }
         this.sampleRate = audioFileReader.getSampleAudioFormat()
                 .getSampleRate();
-        this.nChannels = theSampleData.length;
-        this.nFrames = theSampleData[0].length;
-        this.current = new float[nChannels];
-        this.next = new float[nChannels];
+        this.nChannels = this.theSampleData.length;
+        this.nFrames = this.theSampleData[0].length;
+        this.current = new float[this.nChannels];
+        this.next = new float[this.nChannels];
     }
 }

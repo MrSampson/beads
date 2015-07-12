@@ -5,5 +5,24 @@ package net.beadsproject.beads.data.audiofile;
  * @author aengus
  */
 public enum AudioFileType {
-	WAV, AIFF, MP3, OGG, WMA;
+	/**
+	 * WAV files
+	 */
+	WAV, 
+	/**
+	 *  AIFF files
+	 */
+	AIFF, 
+	/**
+	 *  MP3 files
+	 */
+	MP3, 
+	/**
+	 * Ogg-Vorbis files
+	 */
+	OGG, 
+	/**
+	 * Windows Media files
+	 */
+	WMA;
 }

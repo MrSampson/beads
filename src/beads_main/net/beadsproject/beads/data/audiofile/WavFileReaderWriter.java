@@ -74,7 +74,7 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
     private IOState ioState = IOState.CLOSED;
 
     public WavFileReaderWriter() {
-        buffer = new byte[BUFFER_SIZE];
+        this.buffer = new byte[BUFFER_SIZE];
     }
 
     /**
@@ -142,7 +142,26 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
                     "Only wav files (ending in .wav or .WAV) are supported");
         }
 
-        return readAudioFile(new FileInputStream(filename));
+        return readAudioFile(new File(filename));
+    }
+
+    /**
+     * @param f
+     * @return
+     * @throws FileFormatException
+     * @throws OperationUnsupportedException
+     * @throws IOException
+     */
+    public float[][] readAudioFile(File f) throws IOException,
+            OperationUnsupportedException, FileFormatException {
+        
+        FileInputStream stream = new FileInputStream(f);
+            
+        float[][] data = readAudioFile(stream);
+        
+        stream.close();
+        
+        return data;
     }
 
     /**
@@ -155,14 +174,13 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
     public float[][] readAudioFile(InputStream stream) throws IOException,
             OperationUnsupportedException, FileFormatException {
 
-        // Create a new file input stream for reading file data
-        iStream = stream;
+       
+        this.iStream = stream;
 
         float[][] data = null;
         try {
             readHeader();
-            data = readData();
-            close();
+            data = readData();           
         } catch (IOException e) {
             throw new IOException("Could not read audio file: "
                     + e.getMessage());
@@ -196,33 +214,33 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
      * @throws WavFileException
      */
     private void writeHeader() throws IOException, FileFormatException {
-        bytesPerSample = (validBits + 7) / 8;
-        blockAlign = bytesPerSample * numChannels;
+        this.bytesPerSample = (this.validBits + 7) / 8;
+        this.blockAlign = this.bytesPerSample * this.numChannels;
 
         // Sanity checks
-        if (numChannels < 1 || numChannels > 65535)
+        if (this.numChannels < 1 || this.numChannels > 65535)
             throw new FileFormatException(
                     "Illegal number of channels, valid range 1 to 65536");
-        if (numFrames < 0)
+        if (this.numFrames < 0)
             throw new FileFormatException("Number of frames must be positive");
-        if (validBits < 2 || validBits > 65535)
+        if (this.validBits < 2 || this.validBits > 65535)
             throw new FileFormatException(
                     "Illegal number of valid bits, valid range 2 to 65536");
-        if (sampleRate < 0)
+        if (this.sampleRate < 0)
             throw new FileFormatException("Sample rate must be positive");
 
         // Set the compression code: if 32 or 64 bits, automatically use
         // floating point format
-        if (validBits == 32 || validBits == 64) {
-            compressionCode = WAVE_FORMAT_IEEE_FLOAT;
+        if (this.validBits == 32 || this.validBits == 64) {
+            this.compressionCode = WAVE_FORMAT_IEEE_FLOAT;
         } else {
-            compressionCode = WAVE_FORMAT_PCM;
+            this.compressionCode = WAVE_FORMAT_PCM;
         }
 
         // Calculate the chunk sizes
-        long dataChunkSize = blockAlign * numFrames;
+        long dataChunkSize = this.blockAlign * this.numFrames;
         int formatDataSize;
-        if (compressionCode == WAVE_FORMAT_PCM) {
+        if (this.compressionCode == WAVE_FORMAT_PCM) {
             formatDataSize = 16;
         } else {
             formatDataSize = 18;
@@ -237,62 +255,64 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
         // adjust the main chunk size
         if (dataChunkSize % 2 == 1) {
             mainChunkSize += 1;
-            wordAlignAdjust = true;
+            this.wordAlignAdjust = true;
         } else {
-            wordAlignAdjust = false;
+            this.wordAlignAdjust = false;
         }
 
         // Set the main chunk size
-        putLE(RIFF_CHUNK_ID, buffer, 0, 4);
-        putLE(mainChunkSize, buffer, 4, 4);
-        putLE(RIFF_TYPE_ID, buffer, 8, 4);
+        putLE(RIFF_CHUNK_ID, this.buffer, 0, 4);
+        putLE(mainChunkSize, this.buffer, 4, 4);
+        putLE(RIFF_TYPE_ID, this.buffer, 8, 4);
 
         // Write out the header
-        oStream.write(buffer, 0, 12);
+        this.oStream.write(this.buffer, 0, 12);
 
         // Put format data in buffer
-        long averageBytesPerSecond = sampleRate * blockAlign;
+        long averageBytesPerSecond = this.sampleRate * this.blockAlign;
 
-        putLE(FMT_CHUNK_ID, buffer, 0, 4); // Chunk ID
-        putLE(formatDataSize, buffer, 4, 4); // Chunk Data Size (16 or 18)
-        putLE(compressionCode, buffer, 8, 2); // Compression Code (1 or 3)
-        putLE(numChannels, buffer, 10, 2); // Number of channels
-        putLE(sampleRate, buffer, 12, 4); // Sample Rate
-        putLE(averageBytesPerSecond, buffer, 16, 4); // Average Bytes Per Second
-        putLE(blockAlign, buffer, 20, 2); // Block Align
-        putLE(validBits, buffer, 22, 2); // Valid Bits
-        if (compressionCode == WAVE_FORMAT_IEEE_FLOAT) {
-            putLE(0, buffer, 24, 2); // Size of the Fact Chunk (0)
+        putLE(FMT_CHUNK_ID, this.buffer, 0, 4); // Chunk ID
+        putLE(formatDataSize, this.buffer, 4, 4); // Chunk Data Size (16 or 18)
+        putLE(this.compressionCode, this.buffer, 8, 2); // Compression Code (1
+                                                        // or 3)
+        putLE(this.numChannels, this.buffer, 10, 2); // Number of channels
+        putLE(this.sampleRate, this.buffer, 12, 4); // Sample Rate
+        putLE(averageBytesPerSecond, this.buffer, 16, 4); // Average Bytes Per
+                                                          // Second
+        putLE(this.blockAlign, this.buffer, 20, 2); // Block Align
+        putLE(this.validBits, this.buffer, 22, 2); // Valid Bits
+        if (this.compressionCode == WAVE_FORMAT_IEEE_FLOAT) {
+            putLE(0, this.buffer, 24, 2); // Size of the Fact Chunk (0)
         }
 
         // Write Format Chunk
-        oStream.write(buffer, 0, 8 + formatDataSize);
+        this.oStream.write(this.buffer, 0, 8 + formatDataSize);
 
         // Start Data Chunk
-        putLE(DATA_CHUNK_ID, buffer, 0, 4); // Chunk ID
-        putLE(dataChunkSize, buffer, 4, 4); // Chunk Data Size
+        putLE(DATA_CHUNK_ID, this.buffer, 0, 4); // Chunk ID
+        putLE(dataChunkSize, this.buffer, 4, 4); // Chunk Data Size
 
         // Write Data Chunk Header
-        oStream.write(buffer, 0, 8);
+        this.oStream.write(this.buffer, 0, 8);
 
-        // Calculate the scaling factor for converting to a normalised double
-        if (validBits > 8) {
+        // Calculate the scaling factor for converting to a normalized double
+        if (this.validBits > 8) {
             // If more than 8 validBits, data is signed
             // Conversion required multiplying by magnitude of max positive
             // value
-            floatOffset = 0;
-            floatScale = Long.MAX_VALUE >> (64 - validBits);
+            this.floatOffset = 0;
+            this.floatScale = Long.MAX_VALUE >> (64 - this.validBits);
         } else {
             // Else if 8 or less validBits, data is unsigned
             // Conversion required dividing by max positive value
-            floatOffset = 1;
-            floatScale = 0.5 * ((1 << validBits) - 1);
+            this.floatOffset = 1;
+            this.floatScale = 0.5 * ((1 << this.validBits) - 1);
         }
 
         // Finally, set the IO State
-        bufferPointer = 0;
-        bytesRead = 0;
-        frameCounter = 0;
+        this.bufferPointer = 0;
+        this.bytesRead = 0;
+        this.frameCounter = 0;
 
         this.ioState = IOState.WRITING;
     }
@@ -307,7 +327,7 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
     private void writeData(float[][] data) throws IOException {
         int frameCounter = 0;
         int blockSize = 10000;
-        while (frameCounter < numFrames) {
+        while (frameCounter < this.numFrames) {
             // Determine how many frames to write, up to a maximum of the buffer
             // size
             long remaining = getFramesRemaining();
@@ -328,15 +348,15 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
             OperationUnsupportedException {
 
         // Read the first 12 bytes of the file
-        int bytesRead = iStream.read(buffer, 0, 12);
+        int bytesRead = this.iStream.read(this.buffer, 0, 12);
         if (bytesRead != 12)
             throw new FileFormatException(
                     "Not enough wav file bytes for header");
 
         // Extract parts from the header
-        long riffChunkID = getLE(buffer, 0, 4);
-        long chunkSize = getLE(buffer, 4, 4);
-        long riffTypeID = getLE(buffer, 8, 4);
+        long riffChunkID = getLE(this.buffer, 0, 4);
+        long chunkSize = getLE(this.buffer, 4, 4);
+        long riffTypeID = getLE(this.buffer, 8, 4);
 
         // Check the header bytes contains the correct signature
         if (riffChunkID != RIFF_CHUNK_ID)
@@ -359,7 +379,7 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
         // Search for the Format and Data Chunks
         while (true) {
             // Read the first 8 bytes of the chunk (ID and chunk size)
-            bytesRead = iStream.read(buffer, 0, 8);
+            bytesRead = this.iStream.read(this.buffer, 0, 8);
             if (bytesRead == -1)
                 throw new FileFormatException(
                         "Reached end of file without finding format chunk");
@@ -367,8 +387,8 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
                 throw new FileFormatException("Could not read chunk header");
 
             // Extract the chunk ID and Size
-            long chunkID = getLE(buffer, 0, 4);
-            chunkSize = getLE(buffer, 4, 4);
+            long chunkID = getLE(this.buffer, 0, 4);
+            chunkSize = getLE(this.buffer, 4, 4);
 
             // Word align the chunk size
             // chunkSize specifies the number of bytes holding data. However,
@@ -382,10 +402,10 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
                 foundFormat = true;
 
                 // Read in the header info
-                bytesRead = iStream.read(buffer, 0, 16);
+                bytesRead = this.iStream.read(this.buffer, 0, 16);
 
                 // Check this is uncompressed data
-                int compressionCode = (int) getLE(buffer, 0, 2);
+                int compressionCode = (int) getLE(this.buffer, 0, 2);
                 if (compressionCode != WAVE_FORMAT_PCM
                         && compressionCode != WAVE_FORMAT_IEEE_FLOAT) {
                     throw new OperationUnsupportedException("Compression Code "
@@ -394,10 +414,10 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
                 this.compressionCode = compressionCode;
 
                 // Extract the format information
-                this.numChannels = (int) getLE(buffer, 2, 2);
-                this.sampleRate = getLE(buffer, 4, 4);
-                this.blockAlign = (int) getLE(buffer, 12, 2);
-                this.validBits = (int) getLE(buffer, 14, 2);
+                this.numChannels = (int) getLE(this.buffer, 2, 2);
+                this.sampleRate = getLE(this.buffer, 4, 4);
+                this.blockAlign = (int) getLE(this.buffer, 12, 2);
+                this.validBits = (int) getLE(this.buffer, 14, 2);
 
                 if (this.numChannels == 0)
                     throw new FileFormatException(
@@ -412,7 +432,7 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
                     throw new FileFormatException(
                             "Valid Bits specified in header is greater than 64, this is greater than a long can hold");
                 if (this.compressionCode == WAVE_FORMAT_IEEE_FLOAT
-                        && validBits != 32 && validBits != 64)
+                        && this.validBits != 32 && this.validBits != 64)
                     throw new IOException(
                             "Only 32-bit and 64-bit Floating Point PCM files are supported");
 
@@ -426,7 +446,7 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
                 // any extra format bytes
                 numChunkBytes -= 16;
                 if (numChunkBytes > 0)
-                    iStream.skip(numChunkBytes);
+                    this.iStream.skip(numChunkBytes);
             } else if (chunkID == DATA_CHUNK_ID) {
                 // Check if we've found the format chunk,
                 // If not, throw an exception as we need the format information
@@ -452,7 +472,7 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
             } else {
                 // If an unknown chunk ID is found, just skip over the chunk
                 // data
-                iStream.skip(numChunkBytes);
+                this.iStream.skip(numChunkBytes);
             }
         }
 
@@ -462,16 +482,16 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
 
         // Calculate the scaling factor for converting to a normalised double
         // These factors will only be used for linear PCM (not floating point)
-        if (validBits > 8) {
+        if (this.validBits > 8) {
             // If more than 8 validBits, data is signed
             // Conversion required dividing by magnitude of max negative value
-            floatOffset = 0;
-            floatScale = 1 << (validBits - 1);
+            this.floatOffset = 0;
+            this.floatScale = 1 << (this.validBits - 1);
         } else {
             // Else if 8 or less validBits, data is unsigned
             // Conversion required dividing by max positive value
-            floatOffset = -1;
-            floatScale = 0.5 * ((1 << validBits) - 1);
+            this.floatOffset = -1;
+            this.floatScale = 0.5 * ((1 << this.validBits) - 1);
         }
 
         this.bufferPointer = 0;
@@ -509,28 +529,28 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
      */
     private void close() throws IOException {
         // Close the input stream and set to null
-        if (iStream != null) {
-            iStream.close();
-            iStream = null;
+        if (this.iStream != null) {
+            this.iStream.close();
+            this.iStream = null;
         }
 
-        if (oStream != null) {
+        if (this.oStream != null) {
             // Write out anything still in the local buffer
-            if (bufferPointer > 0)
-                oStream.write(buffer, 0, bufferPointer);
+            if (this.bufferPointer > 0)
+                this.oStream.write(this.buffer, 0, this.bufferPointer);
 
             // If an extra byte is required for word alignment, add it to the
             // end
-            if (wordAlignAdjust)
-                oStream.write(0);
+            if (this.wordAlignAdjust)
+                this.oStream.write(0);
 
             // Close the stream and set to null
-            oStream.close();
-            oStream = null;
+            this.oStream.close();
+            this.oStream = null;
         }
 
         // Flag that the stream is closed
-        ioState = IOState.CLOSED;
+        this.ioState = IOState.CLOSED;
     }
 
     /**
@@ -548,47 +568,48 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
      */
     private int writeFrames(float[][] sampleBuffer, int offset,
             int numFramesToWrite) throws IOException {
-        if (ioState != IOState.WRITING)
+        if (this.ioState != IOState.WRITING)
             throw new IOException("Incorrect IOState");
 
-        if (compressionCode == WAVE_FORMAT_IEEE_FLOAT && this.validBits == 32) {
+        if (this.compressionCode == WAVE_FORMAT_IEEE_FLOAT
+                && this.validBits == 32) {
             for (int f = 0; f < numFramesToWrite; f++) {
 
-                if (frameCounter == numFrames)
+                if (this.frameCounter == this.numFrames)
                     return f;
 
-                for (int c = 0; c < numChannels; c++) {
+                for (int c = 0; c < this.numChannels; c++) {
                     writeSample((long) Float
                             .floatToIntBits(sampleBuffer[c][offset]));
                 }
                 offset++;
-                frameCounter++;
+                this.frameCounter++;
             }
-        } else if (compressionCode == WAVE_FORMAT_IEEE_FLOAT
+        } else if (this.compressionCode == WAVE_FORMAT_IEEE_FLOAT
                 && this.validBits == 64) {
             for (int f = 0; f < numFramesToWrite; f++) {
 
-                if (frameCounter == numFrames)
+                if (this.frameCounter == this.numFrames)
                     return f;
 
-                for (int c = 0; c < numChannels; c++) {
+                for (int c = 0; c < this.numChannels; c++) {
                     writeSample((long) Double
                             .doubleToLongBits((double) sampleBuffer[c][offset]));
                 }
                 offset++;
-                frameCounter++;
+                this.frameCounter++;
             }
         } else {
             for (int f = 0; f < numFramesToWrite; f++) {
 
-                if (frameCounter == numFrames)
+                if (this.frameCounter == this.numFrames)
                     return f;
 
-                for (int c = 0; c < numChannels; c++) {
-                    writeSample((long) (floatScale * (floatOffset + (double) sampleBuffer[c][offset])));
+                for (int c = 0; c < this.numChannels; c++) {
+                    writeSample((long) (this.floatScale * (this.floatOffset + (double) sampleBuffer[c][offset])));
                 }
                 offset++;
-                frameCounter++;
+                this.frameCounter++;
             }
         }
 
@@ -615,47 +636,48 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
     @SuppressWarnings("unused")
     private int writeFrames(double[][] sampleBuffer, int offset,
             int numFramesToWrite) throws IOException {
-        if (ioState != IOState.WRITING)
+        if (this.ioState != IOState.WRITING)
             throw new IOException("Incorrect IOState");
 
-        if (compressionCode == WAVE_FORMAT_IEEE_FLOAT && this.validBits == 32) {
+        if (this.compressionCode == WAVE_FORMAT_IEEE_FLOAT
+                && this.validBits == 32) {
             for (int f = 0; f < numFramesToWrite; f++) {
 
-                if (frameCounter == numFrames)
+                if (this.frameCounter == this.numFrames)
                     return f;
 
-                for (int c = 0; c < numChannels; c++) {
+                for (int c = 0; c < this.numChannels; c++) {
                     writeSample((long) Float
                             .floatToIntBits((float) sampleBuffer[c][offset]));
                 }
                 offset++;
-                frameCounter++;
+                this.frameCounter++;
             }
-        } else if (compressionCode == WAVE_FORMAT_IEEE_FLOAT
+        } else if (this.compressionCode == WAVE_FORMAT_IEEE_FLOAT
                 && this.validBits == 64) {
             for (int f = 0; f < numFramesToWrite; f++) {
 
-                if (frameCounter == numFrames)
+                if (this.frameCounter == this.numFrames)
                     return f;
 
-                for (int c = 0; c < numChannels; c++) {
+                for (int c = 0; c < this.numChannels; c++) {
                     writeSample((long) Double
                             .doubleToLongBits(sampleBuffer[c][offset]));
                 }
                 offset++;
-                frameCounter++;
+                this.frameCounter++;
             }
         } else {
             for (int f = 0; f < numFramesToWrite; f++) {
 
-                if (frameCounter == numFrames)
+                if (this.frameCounter == this.numFrames)
                     return f;
 
-                for (int c = 0; c < numChannels; c++) {
-                    writeSample((long) (floatScale * (floatOffset + sampleBuffer[c][offset])));
+                for (int c = 0; c < this.numChannels; c++) {
+                    writeSample((long) (this.floatScale * (this.floatOffset + sampleBuffer[c][offset])));
                 }
                 offset++;
-                frameCounter++;
+                this.frameCounter++;
             }
         }
 
@@ -669,15 +691,15 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
      * @throws IOException
      */
     private void writeSample(long val) throws IOException {
-        for (int b = 0; b < bytesPerSample; b++) {
-            if (bufferPointer == BUFFER_SIZE) {
-                oStream.write(buffer, 0, BUFFER_SIZE);
-                bufferPointer = 0;
+        for (int b = 0; b < this.bytesPerSample; b++) {
+            if (this.bufferPointer == BUFFER_SIZE) {
+                this.oStream.write(this.buffer, 0, BUFFER_SIZE);
+                this.bufferPointer = 0;
             }
 
-            buffer[bufferPointer] = (byte) (val & 0xFF);
+            this.buffer[this.bufferPointer] = (byte) (val & 0xFF);
             val >>= 8;
-            bufferPointer++;
+            this.bufferPointer++;
         }
     }
 
@@ -695,48 +717,49 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
      */
     private int readFrames(float[][] sampleBuffer, int offset,
             int numFramesToRead) throws IOException {
-        if (ioState != IOState.READING)
+        if (this.ioState != IOState.READING)
             throw new IOException("Incorrect IOState");
 
-        if (compressionCode == WAVE_FORMAT_IEEE_FLOAT && this.validBits == 32) {
+        if (this.compressionCode == WAVE_FORMAT_IEEE_FLOAT
+                && this.validBits == 32) {
             for (int f = 0; f < numFramesToRead; f++) {
 
-                if (frameCounter == numFrames)
+                if (this.frameCounter == this.numFrames)
                     return f;
 
-                for (int c = 0; c < numChannels; c++) {
+                for (int c = 0; c < this.numChannels; c++) {
                     sampleBuffer[c][offset] = Float
                             .intBitsToFloat((int) readSample());
                 }
                 offset++;
-                frameCounter++;
+                this.frameCounter++;
             }
-        } else if (compressionCode == WAVE_FORMAT_IEEE_FLOAT
+        } else if (this.compressionCode == WAVE_FORMAT_IEEE_FLOAT
                 && this.validBits == 64) {
             for (int f = 0; f < numFramesToRead; f++) {
 
-                if (frameCounter == numFrames)
+                if (this.frameCounter == this.numFrames)
                     return f;
 
-                for (int c = 0; c < numChannels; c++) {
+                for (int c = 0; c < this.numChannels; c++) {
                     sampleBuffer[c][offset] = (float) (Double
                             .longBitsToDouble(readSample()));
                 }
                 offset++;
-                frameCounter++;
+                this.frameCounter++;
             }
         } else {
             for (int f = 0; f < numFramesToRead; f++) {
 
-                if (frameCounter == numFrames)
+                if (this.frameCounter == this.numFrames)
                     return f;
 
-                for (int c = 0; c < numChannels; c++) {
-                    sampleBuffer[c][offset] = (float) (floatOffset + (double) readSample()
-                            / floatScale);
+                for (int c = 0; c < this.numChannels; c++) {
+                    sampleBuffer[c][offset] = (float) (this.floatOffset + (double) readSample()
+                            / this.floatScale);
                 }
                 offset++;
-                frameCounter++;
+                this.frameCounter++;
             }
         }
 
@@ -762,48 +785,49 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
     @SuppressWarnings("unused")
     private int readFrames(double[][] sampleBuffer, int offset,
             int numFramesToRead) throws IOException {
-        if (ioState != IOState.READING)
+        if (this.ioState != IOState.READING)
             throw new IOException("Incorrect IOState");
 
-        if (compressionCode == WAVE_FORMAT_IEEE_FLOAT && this.validBits == 32) {
+        if (this.compressionCode == WAVE_FORMAT_IEEE_FLOAT
+                && this.validBits == 32) {
             for (int f = 0; f < numFramesToRead; f++) {
 
-                if (frameCounter == numFrames)
+                if (this.frameCounter == this.numFrames)
                     return f;
 
-                for (int c = 0; c < numChannels; c++) {
+                for (int c = 0; c < this.numChannels; c++) {
                     sampleBuffer[c][offset] = (double) (Float
                             .intBitsToFloat((int) readSample()));
                 }
                 offset++;
-                frameCounter++;
+                this.frameCounter++;
             }
-        } else if (compressionCode == WAVE_FORMAT_IEEE_FLOAT
+        } else if (this.compressionCode == WAVE_FORMAT_IEEE_FLOAT
                 && this.validBits == 64) {
             for (int f = 0; f < numFramesToRead; f++) {
 
-                if (frameCounter == numFrames)
+                if (this.frameCounter == this.numFrames)
                     return f;
 
-                for (int c = 0; c < numChannels; c++) {
+                for (int c = 0; c < this.numChannels; c++) {
                     sampleBuffer[c][offset] = Double
                             .longBitsToDouble(readSample());
                 }
                 offset++;
-                frameCounter++;
+                this.frameCounter++;
             }
         } else {
             for (int f = 0; f < numFramesToRead; f++) {
 
-                if (frameCounter == numFrames)
+                if (this.frameCounter == this.numFrames)
                     return f;
 
-                for (int c = 0; c < numChannels; c++) {
-                    sampleBuffer[c][offset] = floatOffset
-                            + (double) readSample() / floatScale;
+                for (int c = 0; c < this.numChannels; c++) {
+                    sampleBuffer[c][offset] = this.floatOffset
+                            + (double) readSample() / this.floatScale;
                 }
                 offset++;
-                frameCounter++;
+                this.frameCounter++;
             }
         }
 
@@ -819,28 +843,28 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
     private long readSample() throws IOException {
         long val = 0;
 
-        for (int b = 0; b < bytesPerSample; b++) {
-            if (bufferPointer == bytesRead) {
-                int read = iStream.read(buffer, 0, BUFFER_SIZE);
+        for (int b = 0; b < this.bytesPerSample; b++) {
+            if (this.bufferPointer == this.bytesRead) {
+                int read = this.iStream.read(this.buffer, 0, BUFFER_SIZE);
                 if (read == -1)
                     throw new IOException("Not enough data available");
-                bytesRead = read;
-                bufferPointer = 0;
+                this.bytesRead = read;
+                this.bufferPointer = 0;
             }
 
-            long v = (long) buffer[bufferPointer];
-            if (b < bytesPerSample - 1 || bytesPerSample == 1)
+            long v = (long) this.buffer[this.bufferPointer];
+            if (b < this.bytesPerSample - 1 || this.bytesPerSample == 1)
                 v &= 0xFFL;
             val += v << (b * 8);
 
-            bufferPointer++;
+            this.bufferPointer++;
         }
 
         return val;
     }
 
     private long getFramesRemaining() {
-        return numFrames - frameCounter;
+        return this.numFrames - this.frameCounter;
     }
 
     /**

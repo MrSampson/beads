@@ -13,7 +13,7 @@ package net.beadsproject.beads.data;
  */
 public class SampleAudioFormat {
 
-    private final int channels;
+    private final int numChannels;
     private final int bitDepth;
     private final float sampleRate;
     private final boolean bigEndian;
@@ -22,8 +22,8 @@ public class SampleAudioFormat {
     /**
      * @return the number of channels
      */
-    public int getChannels() {
-        return this.channels;
+    public int getNumChannels() {
+        return this.numChannels;
     }
 
     /**
@@ -69,7 +69,7 @@ public class SampleAudioFormat {
         this.bitDepth = bitDepth;
         this.signed = signed;
         this.bigEndian = bigEndian;
-        this.channels = channels;
+        this.numChannels = channels;
     }
 
     /**
@@ -87,10 +87,10 @@ public class SampleAudioFormat {
     @Override
     public String toString() {
         StringBuilder b = new StringBuilder();
-        b.append("Channels: " + this.channels);
-        b.append("Bit depth: " + this.bitDepth);
-        b.append("Sample Rate: " + this.sampleRate);
-        b.append("Big Endian: " + this.bigEndian);
+        b.append("\n" + "Channels: " + this.numChannels + "\n");
+        b.append("Bit depth: " + this.bitDepth + "\n");
+        b.append("Sample Rate: " + this.sampleRate + "\n");
+        b.append("Big Endian: " + this.bigEndian + "\n");
         b.append("Signed:" + this.signed);
         return b.toString();
     }
@@ -98,7 +98,7 @@ public class SampleAudioFormat {
     @Override
     public SampleAudioFormat clone() {
         return new SampleAudioFormat(this.sampleRate, this.bitDepth,
-                this.channels, this.bigEndian, this.signed);
+                this.numChannels, this.bigEndian, this.signed);
     }
 
 }

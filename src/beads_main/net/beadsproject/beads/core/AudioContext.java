@@ -5,7 +5,6 @@
  */
 package net.beadsproject.beads.core;
 
-import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,7 +26,7 @@ import net.beadsproject.beads.ugens.RecordToSample;
  * output point for networks of UGens in a Beads project.
  * 
  * @beads.category control
- * @author ollie
+ * @author Ollie Brown
  */
 public class AudioContext {
 
