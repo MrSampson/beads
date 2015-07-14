@@ -83,263 +83,272 @@ public class JavaSoundAudioFile implements AudioFileReader, AudioFileWriter {
             AudioFileType type, SampleAudioFormat saf) throws IOException,
             OperationUnsupportedException {
 
-        if (!this.getSupportedFileTypesForWriting().contains(type)) {
-            throw new OperationUnsupportedException(
-                    "Unsupported file type for writing: " + type);
-        }
-        if (saf.getBitDepth() > 16) {
-            throw new OperationUnsupportedException(
-                    "Unsupported bit depth. Javasound cannot write WAV or AIFF files with bit depth > 16.");
-        }
+	/**
+	 * Constructor.
+	 */
+	public JavaSoundAudioFile() {
+	}
 
-        int chans = data.length;
-        int frames = data[0].length;
+	/**
+	 * Convert a Javasound AudioFormat object to a Beads SampleAudioFormat object.
+	 * @param af
+	 * @return
+	 */
+	static public SampleAudioFormat convertJavasoundAudioFormatToBeadsAudioFormat(
+			javax.sound.sampled.AudioFormat af) {
+		boolean signed = af.getEncoding() == AudioFormat.Encoding.PCM_SIGNED; // ?
+		SampleAudioFormat newaf = new SampleAudioFormat(af.getSampleRate(),
+				af.getSampleSizeInBits(), af.getChannels(), signed,
+				af.isBigEndian());
+		return newaf;
+	}
 
-        // Convert de-interleaved data to interleaved bytes...
-        float interleaved[] = new float[chans * frames];
-        AudioUtils.interleave(data, chans, frames, interleaved);
-        byte bytes[] = new byte[chans * frames * saf.getBitDepth() / 8];
-        AudioUtils.floatToByte(bytes, interleaved, saf.isBigEndian());
+	/**
+	 * Convert a Beads SampleAudioFormat object to a Javasound AudioFormat object.
+	 * @param saf
+	 * @return
+	 */
+	static public AudioFormat convertBeadsAudioFormatToJavasoundAudioFormat(SampleAudioFormat saf) {
+		AudioFormat af = new AudioFormat(saf.getSampleRate(), saf.getBitDepth(), saf.getChannels(), saf.isSigned(), saf.isBigEndian());
+		return af;
+	}
 
-        // Write the file
-        AudioFormat jsaf = new AudioFormat(saf.getSampleRate(),
-                saf.getBitDepth(), saf.getNumChannels(), saf.isSigned(),
-                saf.isBigEndian());
-        ;
-        AudioFileFormat.Type jsType = AudioFileFormat.Type.WAVE;
-        if (type == AudioFileType.AIFF) {
-            jsType = AudioFileFormat.Type.AIFF;
-        }
-        AudioSystem.write(new AudioInputStream(new ByteArrayInputStream(bytes),
-                jsaf, frames), jsType, new File(filename));
-    }
+	@Override
+	public void writeAudioFile(float[][] data, String filename, AudioFileType type, SampleAudioFormat saf) throws IOException, OperationUnsupportedException {
+		
+		if(!this.getSupportedFileTypesForWriting().contains(type)) {
+			throw new OperationUnsupportedException("Unsupported file type for writing: " + type);
+		}
+		if (saf.getBitDepth() > 16) {
+			throw new OperationUnsupportedException("Unsupported bit depth. Javasound cannot write WAV or AIFF files with bit depth > 16.");
+		}
 
-    @Override
-    public HashSet<AudioFileType> getSupportedFileTypesForWriting() {
-        HashSet<AudioFileType> types = new HashSet<AudioFileType>();
-        types.add(AudioFileType.WAV);
-        types.add(AudioFileType.AIFF);
-        return types;
-    }
+		int chans = data.length;
+		int frames = data[0].length;
 
-    @Override
-    public float[][] readAudioFile(String name) throws IOException {
-        // First try to interpret string as URL, then as local file
-        try {
-            url = new URL(name);
-            file = null;
-            this.name = url.getFile();
-        } catch (Exception e) {
-            file = new File(name);
-            url = null;
-            this.name = file.getAbsolutePath();
-        }
-        audioInputStream = null;
-        try {
-            prepareForReading();
-            readEntireFile();
-        } catch (Exception e) {
-            throw new IOException("Could not read audio file: " + this.name);
-        }
-        this.close();
-        return sampleData;
-    }
+		// Convert de-interleaved data to interleaved bytes...
+		float interleaved[] = new float[chans * frames];
+		AudioUtils.interleave(data, chans, frames, interleaved);
+		byte bytes[] = new byte[chans*frames*saf.getBitDepth()/8];
+		AudioUtils.floatToByte(bytes, interleaved, saf.isBigEndian());
 
-    @Override
-    public HashSet<AudioFileType> getSupportedFileTypesForReading() {
-        HashSet<AudioFileType> types = new HashSet<AudioFileType>();
-        types.add(AudioFileType.WAV);
-        types.add(AudioFileType.AIFF);
-        types.add(AudioFileType.MP3);
-        return types;
-    }
+		// Write the file
+		AudioFormat jsaf = new AudioFormat(saf.getSampleRate(), saf.getBitDepth(), saf.getChannels(), saf.isSigned(), saf.isBigEndian());; 
+		AudioFileFormat.Type jsType = AudioFileFormat.Type.WAVE;
+		if (type == AudioFileType.AIFF) {
+			jsType = AudioFileFormat.Type.AIFF;
+		}
+		AudioSystem.write(new AudioInputStream(new ByteArrayInputStream(bytes),jsaf,frames), jsType, new File(filename));
+	}
 
-    /**
-     * Opens the audio file, ready for data access.
-     * 
-     * @throws UnsupportedAudioFileException
-     * @throws IOException
-     */
-    private void prepareForReading() throws IOException {
+		@Override
+	public HashSet<AudioFileType> getSupportedFileTypesForWriting() {
+		HashSet<AudioFileType> types = new HashSet<AudioFileType>();
+		types.add(AudioFileType.WAV);
+		types.add(AudioFileType.AIFF);
+		return types;
+	}
 
-        finished = false;
+	@Override
+	public float[][] readAudioFile(String name) throws IOException {
+		//First try to interpret string as URL, then as local file
+		try {
+			url = new URL(name);
+			file = null;
+			this.name = url.getFile();
+		} catch (Exception e) {
+			file = new File(name);
+			url = null;
+			this.name = file.getAbsolutePath();
+		}
+		audioInputStream = null;
+		try {
+			prepareForReading();
+			readEntireFile();
+		} catch (Exception e) {
+			throw new IOException("Could not read audio file: " + this.name);
+		}
+		this.close();
+		return sampleData;
+	}
 
-        try {
-            encodedStream = getStream();
-        } catch (UnsupportedAudioFileException e) {
-            throw (new IOException(e.getMessage())); // converts
-                                                     // UnsupportedAudioFileException,
-                                                     // which is JavaSound
-                                                     // specific, to more
-                                                     // generic IOException.
-        }
-        encodedFormat = encodedStream.getFormat();
+	@Override
+	public HashSet<AudioFileType> getSupportedFileTypesForReading() {
+		HashSet<AudioFileType> types = new HashSet<AudioFileType>();
+		types.add(AudioFileType.WAV);
+		types.add(AudioFileType.AIFF);
+		types.add(AudioFileType.MP3);
+		return types;
+	}
 
-        int bitDepth = 16;
+	/**
+	 * Opens the audio file, ready for data access.
+	 * @throws UnsupportedAudioFileException
+	 * @throws IOException
+	 */
+	private void prepareForReading() throws IOException {
+		
+		finished = false;
 
-        decodedFormat = new javax.sound.sampled.AudioFormat(
-                javax.sound.sampled.AudioFormat.Encoding.PCM_SIGNED,
-                encodedFormat.getSampleRate(), bitDepth,
-                encodedFormat.getChannels(), encodedFormat.getChannels()
-                        * (bitDepth / 8), // 2*8 = 16-bits per sample per
-                                          // channel
-                44100, encodedFormat.isBigEndian());
+		try {
+			encodedStream = getStream();
+		} catch (UnsupportedAudioFileException e) {
+			throw (new IOException(e.getMessage())); // converts UnsupportedAudioFileException, which is JavaSound specific, to more generic IOException.
+		}
+		encodedFormat = encodedStream.getFormat();
 
-        if (AudioSystem.isConversionSupported(decodedFormat, encodedFormat)) {
-            isEncoded = true;
-            decodedStream = AudioSystem.getAudioInputStream(decodedFormat,
-                    encodedStream);
-        } else { // try to use the undecoded format
-            isEncoded = false;
-            decodedFormat = encodedFormat;
-            decodedStream = encodedStream;
+		int bitDepth = 16;
 
-            if (decodedFormat.getFrameSize() != 2 * decodedFormat.getChannels()) {
-                close();
-                String s = "Tried to load "
-                        + (8 * decodedFormat.getFrameSize() / decodedFormat
-                                .getChannels())
-                        + "-bit file, but couldn't convert to 16-bit.";
-                throw new IOException(s);
-            }
-        }
-        audioFormat = convertJavasoundAudioFormatToBeadsAudioFormat(decodedFormat);
-    }
+		decodedFormat = new javax.sound.sampled.AudioFormat(
+				javax.sound.sampled.AudioFormat.Encoding.PCM_SIGNED,
+				encodedFormat.getSampleRate(), 
+				bitDepth,
+				encodedFormat.getChannels(), 
+				encodedFormat.getChannels() * (bitDepth / 8), // 2*8 = 16-bits per sample per channel
+				44100, 
+				encodedFormat.isBigEndian());
 
-    /**
-     * Reads the entire file into a float[][].
-     * 
-     * @throws IOException
-     */
-    private void readEntireFile() throws IOException {
+		if (AudioSystem.isConversionSupported(decodedFormat, encodedFormat)) {
+			isEncoded = true;
+			decodedStream = AudioSystem.getAudioInputStream(decodedFormat, encodedStream);
+		} else { // try to use the undecoded format
+			isEncoded = false;
+			decodedFormat = encodedFormat;
+			decodedStream = encodedStream;
 
-        final int BUFFERSIZE = 4096;
-        byte[] audioBytes = new byte[BUFFERSIZE];
-        int sampleBufferSize = 4096;
-        byte[] data = new byte[sampleBufferSize];
-        int bytesRead;
-        int totalBytesRead = 0;
+			if (decodedFormat.getFrameSize() != 2 * decodedFormat.getChannels()) {
+				close();
+				String s = "Tried to load " + (8 * decodedFormat.getFrameSize() / decodedFormat.getChannels()) + "-bit file, but couldn't convert to 16-bit.";
+				throw new IOException(s);
+			}
+		}
+		audioFormat = convertJavasoundAudioFormatToBeadsAudioFormat(decodedFormat);
+	}
 
-        while ((bytesRead = this.read(audioBytes)) != -1) {
-            // resize buf if necessary
-            if (bytesRead > (sampleBufferSize - totalBytesRead)) {
-                sampleBufferSize = Math.max(sampleBufferSize * 2,
-                        sampleBufferSize + bytesRead);
-                byte[] newBuf = new byte[sampleBufferSize];
-                System.arraycopy(data, 0, newBuf, 0, data.length);
-                data = newBuf;
-            }
-            System.arraycopy(audioBytes, 0, data, totalBytesRead, bytesRead);
-            totalBytesRead += bytesRead;
-        }
+	/**
+	 * Reads the entire file into a float[][].
+	 * @throws IOException
+	 */
+	private void readEntireFile() throws IOException {
+		
+		final int BUFFERSIZE = 4096;
+		byte[] audioBytes = new byte[BUFFERSIZE];
+		int sampleBufferSize = 4096;
+		byte[] data = new byte[sampleBufferSize];
+		int bytesRead;
+		int totalBytesRead = 0;
+		
+		while ((bytesRead = this.read(audioBytes)) != -1) {
+			// resize buf if necessary
+			if (bytesRead > (sampleBufferSize - totalBytesRead)) {
+				sampleBufferSize = Math.max(sampleBufferSize * 2, sampleBufferSize + bytesRead);
+				byte[] newBuf = new byte[sampleBufferSize];
+				System.arraycopy(data, 0, newBuf, 0, data.length);
+				data = newBuf;
+			}
+			System.arraycopy(audioBytes, 0, data, totalBytesRead, bytesRead);
+			totalBytesRead += bytesRead;
+		}
 
-        // resize buf to proper length if necessary
-        if (sampleBufferSize > totalBytesRead) {
-            sampleBufferSize = totalBytesRead;
-            byte[] newBuf = new byte[sampleBufferSize];
-            System.arraycopy(data, 0, newBuf, 0, sampleBufferSize);
-            data = newBuf;
-        }
-        int nFrames = sampleBufferSize / (2 * audioFormat.getNumChannels());
+		// resize buf to proper length if necessary
+		if (sampleBufferSize > totalBytesRead) {
+			sampleBufferSize = totalBytesRead;
+			byte[] newBuf = new byte[sampleBufferSize];
+			System.arraycopy(data, 0, newBuf, 0, sampleBufferSize);
+			data = newBuf;
+		}
+		int nFrames = sampleBufferSize / (2 * audioFormat.getChannels());
 
-        // Copy and de-interleave entire data
-        sampleData = new float[audioFormat.getNumChannels()][(int) nFrames];
-        float[] interleaved = new float[(int) (audioFormat.getNumChannels() * nFrames)];
-        AudioUtils.byteToFloat(interleaved, data, audioFormat.isBigEndian());
-        AudioUtils.deinterleave(interleaved, audioFormat.getNumChannels(),
-                (int) nFrames, sampleData);
-    }
+		// Copy and de-interleave entire data
+		sampleData = new float[audioFormat.getChannels()][(int) nFrames];
+		float[] interleaved = new float[(int) (audioFormat.getChannels() * nFrames)];
+		AudioUtils.byteToFloat(interleaved, data, audioFormat.isBigEndian());
+		AudioUtils.deinterleave(interleaved, audioFormat.getChannels(), (int) nFrames, sampleData);
+	}
 
-    /**
-     * Read bytes directly from the decoded audiofile. The bytes will be in an
-     * interleaved format. It is the responsibility of the caller to interpret
-     * this data correctly.
-     * 
-     * The number of bytes read is equal to the size of the byte buffer. If that
-     * many bytes aren't available the buffer will only be partially filled.
-     * 
-     * @param buffer
-     *            A buffer to fill.
-     * 
-     * @return The number of bytes read. A value of -1 indicates the file has no
-     *         data left.
-     */
-    private int read(byte[] buffer) {
-        if (finished) {
-            return -1;
-        }
+	/**
+	 * Read bytes directly from the decoded audiofile. The bytes will be in an
+	 * interleaved format. It is the responsibility of the caller to interpret
+	 * this data correctly.
+	 * 
+	 * The number of bytes read is equal to the size of the byte buffer. If that
+	 * many bytes aren't available the buffer will only be partially filled.
+	 * 
+	 * @param buffer A buffer to fill.
+	 * 
+	 * @return The number of bytes read. A value of -1 indicates the file has no data left.
+	 */
+	private int read(byte[] buffer) {
+		if (finished) {
+			return -1;
+		}
 
-        // read the next bufferSize frames from the input stream
-        int actualBytesRead = -1;
-        try {
-            // loop while reading data in
-            int totalBytesRead = 0;
-            while (totalBytesRead < buffer.length) {
-                actualBytesRead = decodedStream.read(buffer, totalBytesRead,
-                        buffer.length - totalBytesRead);
-                if (actualBytesRead == -1) {
-                    finished = true;
-                    if (totalBytesRead > 0)
-                        actualBytesRead = totalBytesRead;
-                    break;
-                } else
-                    totalBytesRead += actualBytesRead;
-            }
-            if (totalBytesRead == buffer.length)
-                actualBytesRead = totalBytesRead;
+		// read the next bufferSize frames from the input stream
+		int actualBytesRead = -1;
+		try {
+			// loop while reading data in
+			int totalBytesRead = 0;
+			while (totalBytesRead < buffer.length) {
+				actualBytesRead = decodedStream.read(buffer, totalBytesRead,
+						buffer.length - totalBytesRead);
+				if (actualBytesRead == -1) {
+					finished = true;
+					if (totalBytesRead > 0)
+						actualBytesRead = totalBytesRead;
+					break;
+				} else
+					totalBytesRead += actualBytesRead;
+			}
+			if (totalBytesRead == buffer.length)
+				actualBytesRead = totalBytesRead;
 
-        } catch (IOException e) {
-            finished = true;
-        }
+		} catch (IOException e) {
+			finished = true;
+		}
 
-        if (finished || actualBytesRead == -1) {
-            finished = true;
-            return actualBytesRead;
-        }
-        return actualBytesRead;
-    }
+		if (finished || actualBytesRead == -1) {
+			finished = true;
+			return actualBytesRead;
+		}
+		return actualBytesRead;
+	}
 
-    /**
-     * Gets the AudioInputStream for reading.
-     * 
-     * @return
-     * @throws UnsupportedAudioFileException
-     * @throws IOException
-     */
-    private AudioInputStream getStream() throws UnsupportedAudioFileException,
-            IOException {
-        if (file != null)
-            return AudioSystem.getAudioInputStream(file);
-        else if (url != null)
-            return AudioSystem.getAudioInputStream(url);
-        else
-            return audioInputStream;
-    }
+	/**
+	 * Gets the AudioInputStream for reading.
+	 * @return
+	 * @throws UnsupportedAudioFileException
+	 * @throws IOException
+	 */
+	private AudioInputStream getStream() throws UnsupportedAudioFileException, IOException {
+		if (file != null)
+			return AudioSystem.getAudioInputStream(file);
+		else if (url != null)
+			return AudioSystem.getAudioInputStream(url);
+		else
+			return audioInputStream;
+	}
 
-    /**
-     * Close the AudioInputStream objects as necessary.
-     * 
-     * @throws IOException
-     */
-    private void close() throws IOException {
+	/**
+	 * Close the AudioInputStream objects as necessary.
+	 * @throws IOException
+	 */
+	private void close() throws IOException {
 
-        if (isEncoded)
-            decodedStream.close();
+		if (isEncoded)
+			decodedStream.close();
 
-        if (encodedStream != null) {
-            encodedStream.close();
-            encodedStream = null;
-        }
-        decodedStream = null;
-    }
+		if (encodedStream != null) {
+			encodedStream.close();
+			encodedStream = null;
+		}
+		decodedStream = null;
+	}
 
-    /**
-     * Get the SampleAudioFormat read from a file.
-     * 
-     * @return the SampleAudioFormat that has been read in.
-     */
-    @Override
-    public SampleAudioFormat getSampleAudioFormat() {
-        return audioFormat;
-    }
+	/**
+	 * Get the SampleAudioFormat read from a file.
+	 * @return the SampleAudioFormat that has been read in.
+	 */
+	public SampleAudioFormat getSampleAudioFormat() {
+		return audioFormat;
+	}
 }
