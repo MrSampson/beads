@@ -105,8 +105,7 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
 
         try {
             writeHeader();
-            writeData(data);
-            close();
+            writeData(data);            
         } catch (IOException e) {
             throw new IOException("Could not write audio file: "
                     + e.getMessage());
@@ -123,6 +122,46 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
 
         FileOutputStream stream = new FileOutputStream(filename);
         writeAudioFile(data, stream, type, saf);
+        stream.close();
+    }
+ 
+    public void writeAudioFile(double[][] data, OutputStream out,
+            AudioFileType type, SampleAudioFormat saf) throws IOException,
+            OperationUnsupportedException, FileFormatException{
+        if (!getSupportedFileTypesForWriting().contains(type)) {
+            throw new OperationUnsupportedException(
+                    "Unsupported file type for writing: " + type);
+        }
+
+        this.sampleRate = (long) saf.getSampleRate();
+        this.numChannels = data.length;
+        this.validBits = saf.getBitDepth();
+        this.numFrames = data[0].length;
+        this.ioState = IOState.WRITING;
+
+        this.oStream = out;
+
+        try {
+            writeHeader();
+            writeData(data);
+           
+        } catch (IOException e) {
+            throw new IOException("Could not write audio file: "
+                    + e.getMessage());
+        } catch (FileFormatException e) {
+            throw new FileFormatException("Could not write audio file: "
+                    + e.getMessage());
+        }
+        
+    }
+
+    public void writeAudioFile(double[][] data, String filename,
+            AudioFileType type, SampleAudioFormat saf)  throws IOException,
+            OperationUnsupportedException, FileFormatException {
+        FileOutputStream stream = new FileOutputStream(filename);
+        writeAudioFile(data, stream, type, saf);
+        stream.close();
+        
     }
 
     @Override
@@ -193,6 +232,69 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
         }
         return data;
     }
+    
+    
+   
+    public double[][] readAudioFileDouble(String filename)
+            throws OperationUnsupportedException, FileNotFoundException,
+            IOException, FileFormatException {
+
+        if (!(filename.endsWith(".wav") || filename.endsWith(".WAV"))) {
+            throw new OperationUnsupportedException(
+                    "Only wav files (ending in .wav or .WAV) are supported");
+        }
+
+        return readAudioFileDouble(new File(filename));
+    }
+
+    /**
+     * @param f
+     * @return
+     * @throws FileFormatException
+     * @throws OperationUnsupportedException
+     * @throws IOException
+     */
+    public double[][] readAudioFileDouble(File f) throws IOException,
+            OperationUnsupportedException, FileFormatException {
+        
+        FileInputStream stream = new FileInputStream(f);
+            
+        double[][] data = readAudioFileDouble(stream);
+        
+        stream.close();
+        
+        return data;
+    }
+    /**
+     * @param stream
+     * @return
+     * @throws IOException
+     * @throws OperationUnsupportedException
+     * @throws FileFormatException
+     */
+    public double[][] readAudioFileDouble(InputStream stream) throws IOException,
+            OperationUnsupportedException, FileFormatException {
+
+       
+        this.iStream = stream;
+
+        double[][] data = null;
+        try {
+            readHeader();
+            data = readDataDouble();           
+        } catch (IOException e) {
+            throw new IOException("Could not read audio file: "
+                    + e.getMessage());
+        } catch (FileFormatException e) {
+            throw new FileFormatException("Could not read audio file: "
+                    + e.getMessage());
+        } catch (OperationUnsupportedException e) {
+            throw new OperationUnsupportedException(
+                    "Could not read audio file: " + e.getMessage());
+        }
+        return data;
+    }
+
 
     @Override
     public HashSet<AudioFileType> getSupportedFileTypesForReading() {
@@ -325,6 +427,31 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
      * @throws IOException
      */
     private void writeData(float[][] data) throws IOException {
+        int frameCounter = 0;
+        int blockSize = 10000;
+        while (frameCounter < this.numFrames) {
+            // Determine how many frames to write, up to a maximum of the buffer
+            // size
+            long remaining = getFramesRemaining();
+            int toWrite = (remaining > blockSize) ? blockSize : (int) remaining;
+
+            // Write the buffer
+            writeFrames(data, frameCounter, toWrite);
+            frameCounter += toWrite;
+        }
+        //FIXME
+        System.out.println("Wrote "+ frameCounter + " frames.");
+        
+    }
+    
+    /**
+     * Write the audio data to the wav file
+     * 
+     * @param data
+     *            the audio data
+     * @throws IOException
+     */
+    private void writeData(double[][] data) throws IOException {
         int frameCounter = 0;
         int blockSize = 10000;
         while (frameCounter < this.numFrames) {
@@ -521,6 +648,29 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
 
         return data;
     }
+    
+    /**
+     * Read the wav file audio data
+     * 
+     * @throws IOException
+     */
+    private double[][] readDataDouble() throws IOException {
+
+        double[][] data = new double[this.numChannels][(int) this.numFrames];
+        long framesRead = 0;
+        int offset = 0;
+        int blockSize = 10000;
+
+        do {
+            // Read frames into buffer
+            framesRead = readFrames(data, offset, blockSize);
+            offset += framesRead;
+        } while (framesRead != 0);
+
+       
+        return data;
+    }
+
 
     /**
      * Close the file after reading/writing.
@@ -670,17 +820,23 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
         } else {
             for (int f = 0; f < numFramesToWrite; f++) {
 
-                if (this.frameCounter == this.numFrames)
+                if (this.frameCounter == this.numFrames){
+                    
+                    // FIXME
+                    System.out.println("Wrote " + f + " frames");
                     return f;
 
+                }
                 for (int c = 0; c < this.numChannels; c++) {
                     writeSample((long) (this.floatScale * (this.floatOffset + sampleBuffer[c][offset])));
                 }
                 offset++;
                 this.frameCounter++;
+                
             }
         }
 
+        System.out.println("Wrote " + offset + " frames.");
         return numFramesToWrite;
     }
 
@@ -819,18 +975,23 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
         } else {
             for (int f = 0; f < numFramesToRead; f++) {
 
-                if (this.frameCounter == this.numFrames)
+                if (this.frameCounter == this.numFrames) {
+                    // FIXME
+                    System.out.println("Read " + offset + " frames.");
                     return f;
-
+                }
+                
+                
                 for (int c = 0; c < this.numChannels; c++) {
-                    sampleBuffer[c][offset] = this.floatOffset
-                            + (double) readSample() / this.floatScale;
+                    sampleBuffer[c][offset] = (double) (this.floatOffset
+                            + (double) readSample() / this.floatScale);
                 }
                 offset++;
                 this.frameCounter++;
             }
         }
 
+        System.out.println("Read " + offset + " frames.");
         return numFramesToRead;
     }
 
@@ -901,4 +1062,6 @@ public class WavFileReaderWriter implements AudioFileReader, AudioFileWriter {
             pos++;
         }
     }
+
+ 
 }
