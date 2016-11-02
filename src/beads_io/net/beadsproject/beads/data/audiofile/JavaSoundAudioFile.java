@@ -78,40 +78,7 @@ public class JavaSoundAudioFile implements AudioFileReader, AudioFileWriter {
         return af;
     }
 
-    @Override
-    public void writeAudioFile(float[][] data, String filename,
-            AudioFileType type, SampleAudioFormat saf) throws IOException,
-            OperationUnsupportedException {
-
-	/**
-	 * Constructor.
-	 */
-	public JavaSoundAudioFile() {
-	}
-
-	/**
-	 * Convert a Javasound AudioFormat object to a Beads SampleAudioFormat object.
-	 * @param af
-	 * @return
-	 */
-	static public SampleAudioFormat convertJavasoundAudioFormatToBeadsAudioFormat(
-			javax.sound.sampled.AudioFormat af) {
-		boolean signed = af.getEncoding() == AudioFormat.Encoding.PCM_SIGNED; // ?
-		SampleAudioFormat newaf = new SampleAudioFormat(af.getSampleRate(),
-				af.getSampleSizeInBits(), af.getChannels(), signed,
-				af.isBigEndian());
-		return newaf;
-	}
-
-	/**
-	 * Convert a Beads SampleAudioFormat object to a Javasound AudioFormat object.
-	 * @param saf
-	 * @return
-	 */
-	static public AudioFormat convertBeadsAudioFormatToJavasoundAudioFormat(SampleAudioFormat saf) {
-		AudioFormat af = new AudioFormat(saf.getSampleRate(), saf.getBitDepth(), saf.getChannels(), saf.isSigned(), saf.isBigEndian());
-		return af;
-	}
+ 
 
 	@Override
 	public void writeAudioFile(float[][] data, String filename, AudioFileType type, SampleAudioFormat saf) throws IOException, OperationUnsupportedException {
@@ -133,7 +100,7 @@ public class JavaSoundAudioFile implements AudioFileReader, AudioFileWriter {
 		AudioUtils.floatToByte(bytes, interleaved, saf.isBigEndian());
 
 		// Write the file
-		AudioFormat jsaf = new AudioFormat(saf.getSampleRate(), saf.getBitDepth(), saf.getChannels(), saf.isSigned(), saf.isBigEndian());; 
+		AudioFormat jsaf = new AudioFormat(saf.getSampleRate(), saf.getBitDepth(), saf.getNumChannels(), saf.isSigned(), saf.isBigEndian());; 
 		AudioFileFormat.Type jsType = AudioFileFormat.Type.WAVE;
 		if (type == AudioFileType.AIFF) {
 			jsType = AudioFileFormat.Type.AIFF;
@@ -153,15 +120,15 @@ public class JavaSoundAudioFile implements AudioFileReader, AudioFileWriter {
 	public float[][] readAudioFile(String name) throws IOException {
 		//First try to interpret string as URL, then as local file
 		try {
-			url = new URL(name);
-			file = null;
-			this.name = url.getFile();
+			this.url = new URL(name);
+			this.file = null;
+			this.name = this.url.getFile();
 		} catch (Exception e) {
-			file = new File(name);
-			url = null;
-			this.name = file.getAbsolutePath();
+			this.file = new File(name);
+			this.url = null;
+			this.name = this.file.getAbsolutePath();
 		}
-		audioInputStream = null;
+		this.audioInputStream = null;
 		try {
 			prepareForReading();
 			readEntireFile();
@@ -169,7 +136,7 @@ public class JavaSoundAudioFile implements AudioFileReader, AudioFileWriter {
 			throw new IOException("Could not read audio file: " + this.name);
 		}
 		this.close();
-		return sampleData;
+		return this.sampleData;
 	}
 
 	@Override
@@ -188,41 +155,41 @@ public class JavaSoundAudioFile implements AudioFileReader, AudioFileWriter {
 	 */
 	private void prepareForReading() throws IOException {
 		
-		finished = false;
+		this.finished = false;
 
 		try {
-			encodedStream = getStream();
+			this.encodedStream = getStream();
 		} catch (UnsupportedAudioFileException e) {
 			throw (new IOException(e.getMessage())); // converts UnsupportedAudioFileException, which is JavaSound specific, to more generic IOException.
 		}
-		encodedFormat = encodedStream.getFormat();
+		this.encodedFormat = this.encodedStream.getFormat();
 
 		int bitDepth = 16;
 
-		decodedFormat = new javax.sound.sampled.AudioFormat(
+		this.decodedFormat = new javax.sound.sampled.AudioFormat(
 				javax.sound.sampled.AudioFormat.Encoding.PCM_SIGNED,
-				encodedFormat.getSampleRate(), 
+				this.encodedFormat.getSampleRate(), 
 				bitDepth,
-				encodedFormat.getChannels(), 
-				encodedFormat.getChannels() * (bitDepth / 8), // 2*8 = 16-bits per sample per channel
+				this.encodedFormat.getChannels(), 
+				this.encodedFormat.getChannels() * (bitDepth / 8), // 2*8 = 16-bits per sample per channel
 				44100, 
-				encodedFormat.isBigEndian());
+				this.encodedFormat.isBigEndian());
 
-		if (AudioSystem.isConversionSupported(decodedFormat, encodedFormat)) {
-			isEncoded = true;
-			decodedStream = AudioSystem.getAudioInputStream(decodedFormat, encodedStream);
+		if (AudioSystem.isConversionSupported(this.decodedFormat, this.encodedFormat)) {
+			this.isEncoded = true;
+			this.decodedStream = AudioSystem.getAudioInputStream(this.decodedFormat, this.encodedStream);
 		} else { // try to use the undecoded format
-			isEncoded = false;
-			decodedFormat = encodedFormat;
-			decodedStream = encodedStream;
+			this.isEncoded = false;
+			this.decodedFormat = this.encodedFormat;
+			this.decodedStream = this.encodedStream;
 
-			if (decodedFormat.getFrameSize() != 2 * decodedFormat.getChannels()) {
+			if (this.decodedFormat.getFrameSize() != 2 * this.decodedFormat.getChannels()) {
 				close();
-				String s = "Tried to load " + (8 * decodedFormat.getFrameSize() / decodedFormat.getChannels()) + "-bit file, but couldn't convert to 16-bit.";
+				String s = "Tried to load " + (8 * this.decodedFormat.getFrameSize() / this.decodedFormat.getChannels()) + "-bit file, but couldn't convert to 16-bit.";
 				throw new IOException(s);
 			}
 		}
-		audioFormat = convertJavasoundAudioFormatToBeadsAudioFormat(decodedFormat);
+		this.audioFormat = convertJavasoundAudioFormatToBeadsAudioFormat(this.decodedFormat);
 	}
 
 	/**
@@ -257,13 +224,13 @@ public class JavaSoundAudioFile implements AudioFileReader, AudioFileWriter {
 			System.arraycopy(data, 0, newBuf, 0, sampleBufferSize);
 			data = newBuf;
 		}
-		int nFrames = sampleBufferSize / (2 * audioFormat.getChannels());
+		int nFrames = sampleBufferSize / (2 * this.audioFormat.getNumChannels());
 
 		// Copy and de-interleave entire data
-		sampleData = new float[audioFormat.getChannels()][(int) nFrames];
-		float[] interleaved = new float[(int) (audioFormat.getChannels() * nFrames)];
-		AudioUtils.byteToFloat(interleaved, data, audioFormat.isBigEndian());
-		AudioUtils.deinterleave(interleaved, audioFormat.getChannels(), (int) nFrames, sampleData);
+		this.sampleData = new float[this.audioFormat.getNumChannels()][(int) nFrames];
+		float[] interleaved = new float[(int) (this.audioFormat.getNumChannels() * nFrames)];
+		AudioUtils.byteToFloat(interleaved, data, this.audioFormat.isBigEndian());
+		AudioUtils.deinterleave(interleaved, this.audioFormat.getNumChannels(), (int) nFrames, this.sampleData);
 	}
 
 	/**
@@ -279,7 +246,7 @@ public class JavaSoundAudioFile implements AudioFileReader, AudioFileWriter {
 	 * @return The number of bytes read. A value of -1 indicates the file has no data left.
 	 */
 	private int read(byte[] buffer) {
-		if (finished) {
+		if (this.finished) {
 			return -1;
 		}
 
@@ -289,10 +256,10 @@ public class JavaSoundAudioFile implements AudioFileReader, AudioFileWriter {
 			// loop while reading data in
 			int totalBytesRead = 0;
 			while (totalBytesRead < buffer.length) {
-				actualBytesRead = decodedStream.read(buffer, totalBytesRead,
+				actualBytesRead = this.decodedStream.read(buffer, totalBytesRead,
 						buffer.length - totalBytesRead);
 				if (actualBytesRead == -1) {
-					finished = true;
+					this.finished = true;
 					if (totalBytesRead > 0)
 						actualBytesRead = totalBytesRead;
 					break;
@@ -303,11 +270,11 @@ public class JavaSoundAudioFile implements AudioFileReader, AudioFileWriter {
 				actualBytesRead = totalBytesRead;
 
 		} catch (IOException e) {
-			finished = true;
+			this.finished = true;
 		}
 
-		if (finished || actualBytesRead == -1) {
-			finished = true;
+		if (this.finished || actualBytesRead == -1) {
+			this.finished = true;
 			return actualBytesRead;
 		}
 		return actualBytesRead;
@@ -320,12 +287,12 @@ public class JavaSoundAudioFile implements AudioFileReader, AudioFileWriter {
 	 * @throws IOException
 	 */
 	private AudioInputStream getStream() throws UnsupportedAudioFileException, IOException {
-		if (file != null)
-			return AudioSystem.getAudioInputStream(file);
-		else if (url != null)
-			return AudioSystem.getAudioInputStream(url);
+		if (this.file != null)
+			return AudioSystem.getAudioInputStream(this.file);
+		else if (this.url != null)
+			return AudioSystem.getAudioInputStream(this.url);
 		else
-			return audioInputStream;
+			return this.audioInputStream;
 	}
 
 	/**
@@ -334,14 +301,14 @@ public class JavaSoundAudioFile implements AudioFileReader, AudioFileWriter {
 	 */
 	private void close() throws IOException {
 
-		if (isEncoded)
-			decodedStream.close();
+		if (this.isEncoded)
+			this.decodedStream.close();
 
-		if (encodedStream != null) {
-			encodedStream.close();
-			encodedStream = null;
+		if (this.encodedStream != null) {
+			this.encodedStream.close();
+			this.encodedStream = null;
 		}
-		decodedStream = null;
+		this.decodedStream = null;
 	}
 
 	/**
@@ -349,6 +316,6 @@ public class JavaSoundAudioFile implements AudioFileReader, AudioFileWriter {
 	 * @return the SampleAudioFormat that has been read in.
 	 */
 	public SampleAudioFormat getSampleAudioFormat() {
-		return audioFormat;
+		return this.audioFormat;
 	}
 }
